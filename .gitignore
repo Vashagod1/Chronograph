@@ -1,0 +1,11 @@
+node_modules/
+.idea/
+dist/
+.env
+
+# Локальные конфиги сборщиков
+/client/dist/
+/server/dist/
+
+# Логи ошибок
+*.log
