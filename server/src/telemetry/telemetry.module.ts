@@ -1,0 +1,8 @@
+import { Module } from '@nestjs/common';
+import { TelemetryService } from './telemetry.service';
+import { TelemetryGateway } from './telemetry.gateway';
+
+@Module({
+  providers: [TelemetryGateway, TelemetryService],
+})
+export class TelemetryModule {}
