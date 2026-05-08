@@ -1,6 +1,6 @@
 import { OnGatewayInit, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import * as dgram from 'node:dgram';
-import { TelemetryParser } from '../TelemetryParser';
+import { CarTelemetryData, LapData, TelemetryParser } from '../TelemetryParser';
 import { Server } from 'socket.io';
 import { Logger, OnModuleDestroy } from '@nestjs/common';
 
@@ -11,7 +11,6 @@ export class TelemetryGateway implements OnGatewayInit, OnModuleDestroy {
 
   private readonly logger = new Logger(TelemetryGateway.name);
   private readonly udpServer = dgram.createSocket('udp4');
-  private readonly PACKET_ID_CAR_TELEMETRY = 6;
   private readonly UDP_PORT = 20777;
 
   afterInit() {
@@ -24,16 +23,19 @@ export class TelemetryGateway implements OnGatewayInit, OnModuleDestroy {
   }
 
   private handleMessage(msg: Buffer) {
-    if (msg.length < 24) return;
+    const parsed = TelemetryParser.parse(msg);
 
-    const packetId = msg.readUInt8(6);
-    if (packetId !== this.PACKET_ID_CAR_TELEMETRY) return;
+    if (!parsed) return;
 
-    const data = TelemetryParser.parseCarTelemetry(msg);
+    this.server.emit(parsed.type, parsed.data);
 
-    if (!data) return;
-    this.logger.verbose(`Скорость: ${data.speed} | Передача: ${data.gear}`);
-    this.server.emit('telemetry_update', data);
+    if (parsed.type === 'CAR_TELEMETRY') {
+      const telemetry = parsed.data as CarTelemetryData;
+      this.logger.verbose(`Скорость: ${telemetry.speed}`);
+    } else if (parsed.type === 'LAP_DATA') {
+      const lap = parsed.data as LapData;
+      this.logger.verbose(`Круг: ${lap.currentLapNum} | Позиция: ${lap.carPosition}`);
+    }
   }
 
   private handleError(err: Error) {
