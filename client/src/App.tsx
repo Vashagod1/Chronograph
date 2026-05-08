@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { io } from 'socket.io-client'
 import './App.css'
 
-const socket = io('http://localhost:3000')
+const socket = io(import.meta.env.VITE_TELEMETRY_SOCKET_URL ?? 'http://localhost:3000')
 
 interface TelemetryData {
   speed: number
@@ -86,7 +86,10 @@ function GaugeDial({
   unit: string
   color: string
 }) {
-  const percent = useMemo(() => clamp((value - min) / (max - min), 0, 1), [value, min, max])
+  const percent = useMemo(() => {
+    if (max === min) return 0
+    return clamp((value - min) / (max - min), 0, 1)
+  }, [value, min, max])
   const angle = -130 + percent * 260
 
   return (

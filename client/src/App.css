@@ -190,7 +190,7 @@
 
 .gauge-fill {
   background: conic-gradient(from -130deg, var(--dial-color) 0deg, var(--dial-color) calc(var(--dial-percent) * 2.6), transparent calc(var(--dial-percent) * 2.6));
-  filter: drop-shadow(0 0 14px color-mix(in srgb, var(--dial-color), transparent 45%));
+  filter: drop-shadow(0 0 14px rgba(0, 255, 136, 0.35));
 }
 
 .gauge-track::after,
@@ -211,7 +211,7 @@
   transform-origin: bottom center;
   border-radius: 999px;
   background: var(--dial-color);
-  box-shadow: 0 0 14px color-mix(in srgb, var(--dial-color), transparent 35%);
+  box-shadow: 0 0 14px rgba(0, 255, 136, 0.45);
   transition: transform 260ms ease;
 }
 
