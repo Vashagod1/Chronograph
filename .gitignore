@@ -9,3 +9,5 @@ dist/
 
 # Логи ошибок
 *.log
+
+package-lock.json
