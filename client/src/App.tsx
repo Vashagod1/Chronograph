@@ -6,6 +6,7 @@ import {PedalCluster} from "./components/Pedal.tsx";
 import {RpmBar} from "./components/RpmBars.tsx";
 import {useTelemetry} from "./hooks/useTelemetry.ts";
 import "./App.css";
+import {WheelCards} from "./components/WheelCards.tsx";
 
 export default function App() {
     const { telemetry, lap } = useTelemetry();
@@ -28,6 +29,8 @@ export default function App() {
                     <SteeringIndicator steer={telemetry.steer} />
                 </aside>
 
+                <WheelCards wheels={telemetry.wheels}/>
+
                 <section className="dashboard-center">
                     <GearDisplay
                         gear={telemetry.gear}
@@ -48,6 +51,10 @@ export default function App() {
                             <span className="info-val">{telemetry.speed} km/h</span>
                         </div>
                         <div className="info-row">
+                            <span className="info-key">ENGINE TEMP</span>
+                            <span className="info-val">{telemetry.engineTemperature} °C</span>
+                        </div>
+                        <div className="info-row">
                             <span className="info-key">GEAR</span>
                             <span className="info-val">
                 {telemetry.gear === -1
@@ -63,6 +70,11 @@ export default function App() {
 
             <footer className="dashboard-footer">
                 <RpmBar rpm={telemetry.rpm} />
+
+                <p className="footer-disclaimer">
+                    This project is unofficial and is not associated in any way with the Formula 1 companies.
+                    F1, FORMULA ONE, FORMULA 1 and related marks are trade marks of Formula One Licensing B.V
+                </p>
             </footer>
         </div>
     );

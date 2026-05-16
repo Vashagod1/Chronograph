@@ -1,5 +1,5 @@
 import {useMemo} from "react";
-import {clamp} from "./Clamp.tsx";
+import {clamp} from "../utils/Clamp.tsx";
 
 export function RpmBar({ rpm }: { rpm: number }) {
     const TOTAL_BARS = 20;

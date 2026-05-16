@@ -1,8 +1,8 @@
 import { OnGatewayInit, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
-import * as dgram from 'node:dgram';
 import { CarTelemetryData, LapData, TelemetryParser } from '../TelemetryParser';
-import { Server } from 'socket.io';
 import { Logger, OnModuleDestroy } from '@nestjs/common';
+import * as dgram from 'node:dgram';
+import { Server } from 'socket.io';
 
 @WebSocketGateway({ cors: true })
 export class TelemetryGateway implements OnGatewayInit, OnModuleDestroy {
@@ -10,7 +10,7 @@ export class TelemetryGateway implements OnGatewayInit, OnModuleDestroy {
   server!: Server;
 
   private readonly logger = new Logger(TelemetryGateway.name);
-  private readonly udpServer = dgram.createSocket('udp4');
+  private readonly udpServer: dgram.Socket = dgram.createSocket('udp4');
   private readonly UDP_PORT = 20777;
 
   afterInit() {
