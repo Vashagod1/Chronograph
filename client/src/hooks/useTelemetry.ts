@@ -1,10 +1,12 @@
-import {io} from "socket.io-client";
-import {useEffect, useState} from "react";
-import {clamp} from "../components/Clamp.tsx";
+// src/hooks/useTelemetry.ts
+import { io } from "socket.io-client";
+import { useEffect, useState } from "react";
+import { clamp } from "../utils/Clamp.tsx";
+import type {WheelData, LapData, TelemetryData} from "../types/telemetry.ts";
 
 const socket = io("http://localhost:3000");
 
-interface TelemetryData {
+export interface ServerTelemetryData {
     speed: number;
     throttle: number;
     steer: number;
@@ -13,12 +15,12 @@ interface TelemetryData {
     gear: number;
     rpm: number;
     drs: number;
-}
-
-interface LapData {
-    currentLapTimeInMS: number;
-    carPosition: number;
-    currentLapNum: number;
+    engineTemperature: number;
+    brakeTemps: { RL: number; RR: number; FL: number; FR: number };
+    tyreSurfTemps: { RL: number; RR: number; FL: number; FR: number };
+    tyreInnerTemps: { RL: number; RR: number; FL: number; FR: number };
+    tyresPressure: { RL: number; RR: number; FL: number; FR: number };
+    surfaceType: { RL: number; RR: number; FL: number; FR: number };
 }
 
 export function useTelemetry() {
@@ -31,6 +33,8 @@ export function useTelemetry() {
         gear: 0,
         rpm: 0,
         drs: 0,
+        engineTemperature: 0,
+        wheels: []
     });
 
     const [lap, setLap] = useState<LapData>({
@@ -40,7 +44,38 @@ export function useTelemetry() {
     });
 
     useEffect(() => {
-        const onCarTelemetry = (data: TelemetryData) => {
+        const onCarTelemetry = (data: ServerTelemetryData) => {
+            const wheels: WheelData[] = [
+                {
+                    brakeTemp: data.brakeTemps.FL,
+                    surfTemp: data.tyreSurfTemps.FL,
+                    innerTemp: data.tyreInnerTemps.FL,
+                    pressure: data.tyresPressure.FL,
+                    surfaceType: data.surfaceType.FL,
+                },
+                {
+                    brakeTemp: data.brakeTemps.FR,
+                    surfTemp: data.tyreSurfTemps.FR,
+                    innerTemp: data.tyreInnerTemps.FR,
+                    pressure: data.tyresPressure.FR,
+                    surfaceType: data.surfaceType.FR,
+                },
+                {
+                    brakeTemp: data.brakeTemps.RL,
+                    surfTemp: data.tyreSurfTemps.RL,
+                    innerTemp: data.tyreInnerTemps.RL,
+                    pressure: data.tyresPressure.RL,
+                    surfaceType: data.surfaceType.RL,
+                },
+                {
+                    brakeTemp: data.brakeTemps.RR,
+                    surfTemp: data.tyreSurfTemps.RR,
+                    innerTemp: data.tyreInnerTemps.RR,
+                    pressure: data.tyresPressure.RR,
+                    surfaceType: data.surfaceType.RR,
+                },
+            ];
+
             setTelemetry({
                 speed: data.speed ?? 0,
                 throttle: clamp(data.throttle ?? 0, 0, 1),
@@ -50,6 +85,8 @@ export function useTelemetry() {
                 gear: data.gear ?? 0,
                 rpm: data.rpm ?? 0,
                 drs: data.drs ?? 0,
+                engineTemperature: data.engineTemperature ?? 0,
+                wheels
             });
         };
 
@@ -70,5 +107,5 @@ export function useTelemetry() {
         };
     }, []);
 
-    return { telemetry, lap}
+    return { telemetry, lap }
 }

@@ -1,4 +1,4 @@
-import {clamp} from "./Clamp.tsx";
+import {clamp} from "../utils/Clamp.tsx";
 
 export function PedalCluster({
                           throttle,

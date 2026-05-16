@@ -1,4 +1,4 @@
-import {clamp} from "./Clamp.tsx";
+import {clamp} from "../utils/Clamp.tsx";
 
 export function SpeedDisplay({ speed }: { speed: number }) {
     const safeSpeed = clamp(Math.round(speed || 0), 0, 999);

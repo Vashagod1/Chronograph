@@ -1,8 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;600;700&display=swap");
 
-*{
-    user-select: none
-}
 
 
 :root {
@@ -15,6 +12,7 @@
     --accent-yellow: #ffcc00;
     --accent-red: #ff3333;
     --accent-blue: #00ccff;
+    --dark: #717171;
 }
 
 * {
@@ -382,6 +380,13 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    margin-bottom: 10px;
+}
+
+.footer-disclaimer {
+    display: flex;
+    justify-content: center;
+    color: var(--dark);
 }
 
 .rpm-label {
