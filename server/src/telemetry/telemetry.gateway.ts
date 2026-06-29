@@ -1,5 +1,5 @@
 import { OnGatewayInit, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
-import { CarTelemetryData, LapData, TelemetryParser } from '../TelemetryParser';
+import TelemetryParser, { CarTelemetryData, LapData } from '../TelemetryParser';
 import { Logger, OnModuleDestroy } from '@nestjs/common';
 import * as dgram from 'node:dgram';
 import { Server } from 'socket.io';
