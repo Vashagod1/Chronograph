@@ -14,9 +14,13 @@ export default function App() {
     return (
         <div className="dashboard">
             <TelemetryHeader
-                lapNum={lap.currentLapNum}
                 lapTime={lap.currentLapTimeInMS}
-                pos={lap.carPosition}
+                lastTime={lap.lastLapTimeInMS}
+                sector1MS={lap.sector1TimeMSPart}
+                sector1Min={lap.sector1TimeMinutesPart}
+                sector2MS={lap.sector2TimeMSPart}
+                sector2Min={lap.sector2TimeMinutesPart}
+                sector={lap.sector}
             />
 
             <main className="dashboard-main">

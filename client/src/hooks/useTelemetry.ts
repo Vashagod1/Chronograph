@@ -1,27 +1,9 @@
-// src/hooks/useTelemetry.ts
 import { io } from "socket.io-client";
 import { useEffect, useState } from "react";
 import { clamp } from "../utils/Clamp.tsx";
-import type {WheelData, LapData, TelemetryData} from "../types/telemetry.ts";
+import type {WheelData, LapData, TelemetryData, ServerTelemetryData} from "../types/telemetry.ts";
 
 const socket = io("http://localhost:3000");
-
-export interface ServerTelemetryData {
-    speed: number;
-    throttle: number;
-    steer: number;
-    brake: number;
-    clutch: number;
-    gear: number;
-    rpm: number;
-    drs: number;
-    engineTemperature: number;
-    brakeTemps: { RL: number; RR: number; FL: number; FR: number };
-    tyreSurfTemps: { RL: number; RR: number; FL: number; FR: number };
-    tyreInnerTemps: { RL: number; RR: number; FL: number; FR: number };
-    tyresPressure: { RL: number; RR: number; FL: number; FR: number };
-    surfaceType: { RL: number; RR: number; FL: number; FR: number };
-}
 
 export function useTelemetry() {
     const [telemetry, setTelemetry] = useState<TelemetryData>({
@@ -38,9 +20,15 @@ export function useTelemetry() {
     });
 
     const [lap, setLap] = useState<LapData>({
+        lastLapTimeInMS: 0,
         currentLapTimeInMS: 0,
+        sector1TimeMSPart: 0,
+        sector1TimeMinutesPart: 0,
+        sector2TimeMSPart: 0,
+        sector2TimeMinutesPart: 0,
         carPosition: 0,
         currentLapNum: 1,
+        sector: 0,
     });
 
     useEffect(() => {
@@ -92,9 +80,15 @@ export function useTelemetry() {
 
         const onLapData = (data: LapData) => {
             setLap({
+                lastLapTimeInMS: data.lastLapTimeInMS ?? 0,
+                sector1TimeMSPart: data.sector1TimeMSPart ?? 0,
+                sector1TimeMinutesPart: data.sector1TimeMinutesPart ?? 0,
+                sector2TimeMSPart: data.sector2TimeMSPart ?? 0,
+                sector2TimeMinutesPart: data.sector2TimeMinutesPart ?? 0,
                 currentLapTimeInMS: data.currentLapTimeInMS ?? 0,
                 carPosition: data.carPosition ?? 0,
                 currentLapNum: data.currentLapNum ?? 1,
+                sector: data.sector ?? 0,
             });
         };
 

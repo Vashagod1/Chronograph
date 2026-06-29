@@ -56,12 +56,11 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 4px;
+    gap: 40px;
 }
 
 .header-timer {
     flex: 1;
-    user-select: none
 }
 
 .header-label {
@@ -76,6 +75,7 @@ body {
     font-size: 28px;
     font-weight: 700;
     color: var(--text);
+    margin-left: 100px;
 }
 
 .header-value.timer {
@@ -464,3 +464,4 @@ body {
         font-size: 48px;
     }
 }
+
