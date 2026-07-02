@@ -1,0 +1,33 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  trackId   Int
+  createdAt DateTime @default(now())
+  laps      Lap[]
+}
+
+model Lap {
+  id        String  @id @default(uuid())
+  sessionId String
+  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  lapNumber   Int
+  lapTimeinMS Int?
+  status      String
+
+  telemetryData Json
+  metrics       Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([status])
+}
