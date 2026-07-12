@@ -15,19 +15,14 @@ model Session {
 }
 
 model Lap {
-  id        String  @id @default(uuid())
-  sessionId String
-  session   Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-
-  lapNumber   Int
-  lapTimeinMS Int?
-  status      String
-
-  telemetryData Json
-  metrics       Json?
-
-  createdAt DateTime @default(now())
+  id             String   @id @default(uuid())
+  sessionId      String
+  lapNumber      Int
+  finalTimeInMS  Int?
+  isLapInvalid   Boolean  @default(false)
+  telemetryData  Json
+  createdAt      DateTime @default(now())
+  session        Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
-  @@index([status])
 }

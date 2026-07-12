@@ -3,6 +3,7 @@ import TelemetryParser, { CarTelemetryData, LapData } from '../TelemetryParser';
 import { Logger, OnModuleDestroy } from '@nestjs/common';
 import * as dgram from 'node:dgram';
 import { Server } from 'socket.io';
+import { LapsService } from '../laps/laps.service';
 
 @WebSocketGateway({ cors: true })
 export class TelemetryGateway implements OnGatewayInit, OnModuleDestroy {
@@ -12,6 +13,12 @@ export class TelemetryGateway implements OnGatewayInit, OnModuleDestroy {
   private readonly logger = new Logger(TelemetryGateway.name);
   private readonly udpServer: dgram.Socket = dgram.createSocket('udp4');
   private readonly UDP_PORT = 20777;
+
+  private lastTelemetry: CarTelemetryData | null = null;
+  private lastLapData: LapData | null = null;
+  private currentSessionId: string | null = null;
+
+  constructor(private readonly lapsService: LapsService) {}
 
   afterInit() {
     this.udpServer.on('message', this.handleMessage.bind(this));
@@ -27,14 +34,32 @@ export class TelemetryGateway implements OnGatewayInit, OnModuleDestroy {
 
     if (!parsed) return;
 
-    this.server.emit(parsed.type, parsed.data);
+    this.server.emit(parsed.type, {
+      sessionId: parsed.sessionId,
+      ...parsed.data,
+    });
+
+    if (this.currentSessionId !== parsed.sessionId) {
+      this.logger.log(`[Гейтвей] Сессия сменилась ${parsed.sessionId}, сбрасываем сессию`);
+
+      this.currentSessionId = parsed.sessionId;
+      this.lastTelemetry = null;
+      this.lastLapData = null;
+
+      this.lapsService.resetCurrentLap();
+    }
 
     if (parsed.type === 'CAR_TELEMETRY') {
-      const telemetry = parsed.data as CarTelemetryData;
-      this.logger.verbose(`Скорость: ${telemetry.speed}`);
+      this.lastTelemetry = parsed.data as CarTelemetryData;
     } else if (parsed.type === 'LAP_DATA') {
-      const lap = parsed.data as LapData;
-      this.logger.verbose(`Круг: ${lap.currentLapNum} | Позиция: ${lap.carPosition}`);
+      this.lastLapData = parsed.data as LapData;
+    }
+
+    if (this.lastTelemetry && this.lastLapData) {
+      this.lapsService.handleIncomingPacket(this.lastTelemetry, this.lastLapData, parsed.sessionId);
+
+      this.lastTelemetry = null;
+      this.lastLapData = null;
     }
   }
 
