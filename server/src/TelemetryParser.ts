@@ -169,12 +169,13 @@ const LAP_DATA_PACKET_SIZE = 1285;
 class TelemetryParser {
   static parse(msg: Buffer) {
     const packetId = msg.readUInt8(6);
+    const sessionId = msg.readBigUInt64LE(7).toString();
 
     switch (packetId) {
       case TELEMETRY_PACKET_ID.CarTelemetry:
-        return { type: 'CAR_TELEMETRY', data: this.parseCarTelemetry(msg) };
+        return { type: 'CAR_TELEMETRY', sessionId, data: this.parseCarTelemetry(msg) };
       case TELEMETRY_PACKET_ID.LapData:
-        return { type: 'LAP_DATA', data: this.parseLapData(msg) };
+        return { type: 'LAP_DATA', sessionId, data: this.parseLapData(msg) };
       default:
         return null;
     }
