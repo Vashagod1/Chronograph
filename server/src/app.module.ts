@@ -4,9 +4,10 @@ import { AppService } from './app.service';
 import { TelemetryModule } from './telemetry/telemetry.module';
 import { LapsService } from './laps/laps.service';
 import { PrismaService } from '../prisma/PrismaService';
+import { AnalyticsModule } from './analytics/analytics.module';
 
 @Module({
-  imports: [TelemetryModule],
+  imports: [TelemetryModule, AnalyticsModule],
   controllers: [AppController],
   providers: [AppService, LapsService, PrismaService],
 })
