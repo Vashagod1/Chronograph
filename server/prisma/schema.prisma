@@ -20,6 +20,11 @@ model Lap {
   lapNumber      Int
   finalTimeInMS  Int?
   isLapInvalid   Boolean  @default(false)
+
+  sector1TimeMS  Int?
+  sector2TimeMS  Int?
+  sector3TimeMS  Int?
+
   telemetryData  Json
   createdAt      DateTime @default(now())
   session        Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
