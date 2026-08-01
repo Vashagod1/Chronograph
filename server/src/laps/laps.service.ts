@@ -3,6 +3,17 @@ import { CarTelemetryData, LapData } from '../TelemetryParser';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/PrismaService';
 
+export enum ResultStatus {
+  INVALID = 0,
+  INACTIVE = 1,
+  ACTIVE = 2,
+  FINISHED = 3,
+  DID_NOT_FINISH = 4,
+  DISQUALIFIED = 5,
+  NOT_CLASSIFIED = 6,
+  RETIRED = 7,
+}
+
 interface TelemetryPoint {
   speed: number;
   throttle: number;
@@ -26,45 +37,52 @@ interface ActiveLapBuffer {
   sessionId: string;
   lapNumber: number;
   points: TelemetryPoint[];
+  sector1TimeMS?: number;
+  sector2TimeMS?: number;
 }
 
 @Injectable()
 export class LapsService {
-  [x: string]: any;
   private currentLap: ActiveLapBuffer | null = null;
   private readonly logger = new Logger();
 
   constructor(private readonly prisma: PrismaService) {}
 
-  handleIncomingPacket(CarTelemetryData: CarTelemetryData, LapData: LapData, sessionId: string) {
-    if (this.currentLap && (LapData.resultStatus === 4 || LapData.resultStatus === 5 || LapData.resultStatus === 7)) {
+  private readonly RETIREMENT_STATUSES = [ResultStatus.DID_NOT_FINISH, ResultStatus.DISQUALIFIED, ResultStatus.RETIRED];
+  private readonly FINISHED_STATUS = [ResultStatus.FINISHED];
+
+  async handleIncomingPacket(carTelemetryData: CarTelemetryData, lapData: LapData, sessionId: string) {
+    if (this.currentLap && this.RETIREMENT_STATUSES.includes(lapData.resultStatus)) {
       this.logger.log(`[Сервис] Обнаружен сход пилота (DNF/Retirement). Экстренно сохраняем круг №${this.currentLap.lapNumber}`);
 
-      const isDNF = this.currentLap;
+      const lapToSave = this.currentLap;
+      this.currentLap = null;
 
-      if (isDNF) {
-        this.currentLap = null;
-
-        this.saveLapToDataBase(isDNF).catch((err) => console.log(err));
-      }
+      this.saveLapToDataBase(lapToSave).catch((err) => {
+        this.logger.error(`Ошибка при экстренном сохранении DNF круга:`, err);
+      });
 
       return;
     }
 
     if (this.currentLap === null) {
+      if (this.FINISHED_STATUS.includes(lapData.resultStatus)) {
+        return;
+      }
+
       this.currentLap = {
         sessionId: sessionId,
-        lapNumber: LapData.currentLapNum,
+        lapNumber: lapData.currentLapNum,
         points: [],
       };
     }
 
-    if (LapData.currentLapNum > this.currentLap.lapNumber) {
+    if (lapData.currentLapNum > this.currentLap.lapNumber) {
       const lapToSave = this.currentLap;
 
       this.currentLap = {
         sessionId: sessionId,
-        lapNumber: LapData.currentLapNum,
+        lapNumber: lapData.currentLapNum,
         points: [],
       };
 
@@ -73,8 +91,30 @@ export class LapsService {
       });
     }
 
-    if (this.currentLap.points.length > 0 && LapData.currentLapTimeInMS < this.currentLap.points[this.currentLap.points.length - 1].currentLapTimeInMS) {
-      const deleteFromIndex = this.currentLap.points.findIndex((point) => point.currentLapTimeInMS > LapData.currentLapTimeInMS);
+    if (this.currentLap && this.FINISHED_STATUS.includes(lapData.resultStatus)) {
+      this.logger.log(`[Сервис] Последний круг зафиксирован. Круг №${this.currentLap.lapNumber}`);
+      const lapToSave = this.currentLap;
+      this.currentLap = null;
+      await this.saveLapToDataBase(lapToSave);
+      return;
+    }
+
+    if (!this.currentLap.sector1TimeMS) {
+      const s1 = lapData.sector1TimeMinutesPart * 60000 + lapData.sector1TimeMSPart;
+      if (s1 > 0) {
+        this.currentLap.sector1TimeMS = s1;
+      }
+    }
+
+    if (!this.currentLap.sector2TimeMS) {
+      const s2 = lapData.sector2TimeMinutesPart * 60000 + lapData.sector2TimeMSPart;
+      if (s2 > 0) {
+        this.currentLap.sector2TimeMS = s2;
+      }
+    }
+
+    if (this.currentLap.points.length > 0 && lapData.currentLapTimeInMS < this.currentLap.points[this.currentLap.points.length - 1].currentLapTimeInMS) {
+      const deleteFromIndex = this.currentLap.points.findIndex((point) => point.currentLapTimeInMS > lapData.currentLapTimeInMS);
 
       if (deleteFromIndex !== -1) {
         this.currentLap.points.splice(deleteFromIndex);
@@ -82,37 +122,37 @@ export class LapsService {
     }
 
     const newPoint: TelemetryPoint = {
-      speed: CarTelemetryData.speed,
-      throttle: CarTelemetryData.throttle,
-      steer: CarTelemetryData.steer,
-      brake: CarTelemetryData.brake,
-      gear: CarTelemetryData.gear,
-      rpm: CarTelemetryData.rpm,
-      engineTemp: CarTelemetryData.engineTemperature,
+      speed: carTelemetryData.speed,
+      throttle: carTelemetryData.throttle,
+      steer: carTelemetryData.steer,
+      brake: carTelemetryData.brake,
+      gear: carTelemetryData.gear,
+      rpm: carTelemetryData.rpm,
+      engineTemp: carTelemetryData.engineTemperature,
       tyreSurfTemps: {
-        RL: CarTelemetryData.tyreSurfTemps.RL,
-        RR: CarTelemetryData.tyreSurfTemps.RR,
-        FL: CarTelemetryData.tyreSurfTemps.FL,
-        FR: CarTelemetryData.tyreSurfTemps.FR,
+        RL: carTelemetryData.tyreSurfTemps.RL,
+        RR: carTelemetryData.tyreSurfTemps.RR,
+        FL: carTelemetryData.tyreSurfTemps.FL,
+        FR: carTelemetryData.tyreSurfTemps.FR,
       },
       tyreInnerTemps: {
-        RL: CarTelemetryData.tyreInnerTemps.RL,
-        RR: CarTelemetryData.tyreInnerTemps.RR,
-        FL: CarTelemetryData.tyreInnerTemps.FL,
-        FR: CarTelemetryData.tyreInnerTemps.FR,
+        RL: carTelemetryData.tyreInnerTemps.RL,
+        RR: carTelemetryData.tyreInnerTemps.RR,
+        FL: carTelemetryData.tyreInnerTemps.FL,
+        FR: carTelemetryData.tyreInnerTemps.FR,
       },
       surfaceType: {
-        RL: CarTelemetryData.surfaceType.RL,
-        RR: CarTelemetryData.surfaceType.RR,
-        FL: CarTelemetryData.surfaceType.FL,
-        FR: CarTelemetryData.surfaceType.FR,
+        RL: carTelemetryData.surfaceType.RL,
+        RR: carTelemetryData.surfaceType.RR,
+        FL: carTelemetryData.surfaceType.FL,
+        FR: carTelemetryData.surfaceType.FR,
       },
-      lapDistance: LapData.lapDistance,
-      currentLapTimeInMS: LapData.currentLapTimeInMS,
-      sector: LapData.sector,
-      lapInvalid: LapData.currentLapInvalid,
-      driverStatus: LapData.driverStatus,
-      resultStatus: LapData.resultStatus,
+      lapDistance: lapData.lapDistance,
+      currentLapTimeInMS: lapData.currentLapTimeInMS,
+      sector: lapData.sector,
+      lapInvalid: lapData.currentLapInvalid,
+      driverStatus: lapData.driverStatus,
+      resultStatus: lapData.resultStatus,
     };
     this.currentLap.points.push(newPoint);
   }
@@ -138,9 +178,18 @@ export class LapsService {
     });
 
     const lastPoint = lapBuffer.points[lapBuffer.points.length - 1];
-
-    const finalTimeInMS = lastPoint.currentLapTimeInMS;
     const isLapInvalid = lastPoint.lapInvalid;
+    const maxPointTime = Math.max(...lapBuffer.points.map((p) => p.currentLapTimeInMS));
+    const finalTimeInMS = maxPointTime > 0 ? maxPointTime : lastPoint.currentLapTimeInMS;
+
+    const s1 = lapBuffer.sector1TimeMS ?? null;
+    const s2 = lapBuffer.sector2TimeMS ?? null;
+
+    let s3: number | null = null;
+    if (s1 && s2) {
+      const rawS3 = finalTimeInMS - s1 - s2;
+      s3 = rawS3 > 0 ? rawS3 : null;
+    }
 
     const createdLap = await this.prisma.lap.create({
       data: {
@@ -149,9 +198,10 @@ export class LapsService {
         finalTimeInMS: finalTimeInMS,
         isLapInvalid: isLapInvalid === 1,
         telemetryData: lapBuffer.points as unknown as Prisma.InputJsonValue,
+        sector1TimeMS: s1,
+        sector2TimeMS: s2,
+        sector3TimeMS: s3,
       },
     });
-
-    console.log(`[БД] Круг №${createdLap.lapNumber} успешно сохранен! ID записи: ${createdLap.id}`);
   }
 }
