@@ -1,7 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CarTelemetryData, LapData } from '../TelemetryParser';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '../../prisma/PrismaService';
+import { LapsRepository } from './laps.repository';
 
 export enum ResultStatus {
   INVALID = 0,
@@ -33,9 +32,10 @@ interface TelemetryPoint {
   resultStatus: number;
 }
 
-interface ActiveLapBuffer {
+export interface ActiveLapBuffer {
   sessionId: string;
   lapNumber: number;
+  lastLapTimeInMS?: number;
   points: TelemetryPoint[];
   sector1TimeMS?: number;
   sector2TimeMS?: number;
@@ -46,7 +46,7 @@ export class LapsService {
   private currentLap: ActiveLapBuffer | null = null;
   private readonly logger = new Logger();
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly lapsRepository: LapsRepository) {}
 
   private readonly RETIREMENT_STATUSES = [ResultStatus.DID_NOT_FINISH, ResultStatus.DISQUALIFIED, ResultStatus.RETIRED];
   private readonly FINISHED_STATUS = [ResultStatus.FINISHED];
@@ -56,9 +56,10 @@ export class LapsService {
       this.logger.log(`[Сервис] Обнаружен сход пилота (DNF/Retirement). Экстренно сохраняем круг №${this.currentLap.lapNumber}`);
 
       const lapToSave = this.currentLap;
+      lapToSave.lastLapTimeInMS = lapData.lastLapTimeInMS;
       this.currentLap = null;
 
-      this.saveLapToDataBase(lapToSave).catch((err) => {
+      this.lapsRepository.saveLapToDataBase(lapToSave).catch((err) => {
         this.logger.error(`Ошибка при экстренном сохранении DNF круга:`, err);
       });
 
@@ -73,12 +74,14 @@ export class LapsService {
       this.currentLap = {
         sessionId: sessionId,
         lapNumber: lapData.currentLapNum,
+        lastLapTimeInMS: lapData.lastLapTimeInMS,
         points: [],
       };
     }
 
     if (lapData.currentLapNum > this.currentLap.lapNumber) {
       const lapToSave = this.currentLap;
+      lapToSave.lastLapTimeInMS = lapData.lastLapTimeInMS;
 
       this.currentLap = {
         sessionId: sessionId,
@@ -86,31 +89,9 @@ export class LapsService {
         points: [],
       };
 
-      this.saveLapToDataBase(lapToSave).catch((err) => {
+      this.lapsRepository.saveLapToDataBase(lapToSave).catch((err) => {
         console.error(`Ошибка в сохранении круга в БД:`, err);
       });
-    }
-
-    if (this.currentLap && this.FINISHED_STATUS.includes(lapData.resultStatus)) {
-      this.logger.log(`[Сервис] Последний круг зафиксирован. Круг №${this.currentLap.lapNumber}`);
-      const lapToSave = this.currentLap;
-      this.currentLap = null;
-      await this.saveLapToDataBase(lapToSave);
-      return;
-    }
-
-    if (!this.currentLap.sector1TimeMS) {
-      const s1 = lapData.sector1TimeMinutesPart * 60000 + lapData.sector1TimeMSPart;
-      if (s1 > 0) {
-        this.currentLap.sector1TimeMS = s1;
-      }
-    }
-
-    if (!this.currentLap.sector2TimeMS) {
-      const s2 = lapData.sector2TimeMinutesPart * 60000 + lapData.sector2TimeMSPart;
-      if (s2 > 0) {
-        this.currentLap.sector2TimeMS = s2;
-      }
     }
 
     if (this.currentLap.points.length > 0 && lapData.currentLapTimeInMS < this.currentLap.points[this.currentLap.points.length - 1].currentLapTimeInMS) {
@@ -155,6 +136,29 @@ export class LapsService {
       resultStatus: lapData.resultStatus,
     };
     this.currentLap.points.push(newPoint);
+
+    if (!this.currentLap.sector1TimeMS) {
+      const s1 = lapData.sector1TimeMinutesPart * 60000 + lapData.sector1TimeMSPart;
+      if (s1 > 0) {
+        this.currentLap.sector1TimeMS = s1;
+      }
+    }
+
+    if (!this.currentLap.sector2TimeMS) {
+      const s2 = lapData.sector2TimeMinutesPart * 60000 + lapData.sector2TimeMSPart;
+      if (s2 > 0) {
+        this.currentLap.sector2TimeMS = s2;
+      }
+    }
+
+    if (this.currentLap && this.FINISHED_STATUS.includes(lapData.resultStatus)) {
+      this.logger.log(`[Сервис] Последний круг зафиксирован. Круг №${this.currentLap.lapNumber}`);
+      const lapToSave = this.currentLap;
+      lapToSave.lastLapTimeInMS = lapData.lastLapTimeInMS;
+      this.currentLap = null;
+      await this.lapsRepository.saveLapToDataBase(lapToSave);
+      return;
+    }
   }
 
   getCurrentLap() {
@@ -163,45 +167,5 @@ export class LapsService {
 
   resetCurrentLap() {
     this.currentLap = null;
-  }
-
-  async saveLapToDataBase(lapBuffer: ActiveLapBuffer) {
-    if (lapBuffer.points.length === 0) return;
-
-    await this.prisma.session.upsert({
-      where: { id: lapBuffer.sessionId },
-      update: {},
-      create: {
-        id: lapBuffer.sessionId,
-        trackId: 0,
-      },
-    });
-
-    const lastPoint = lapBuffer.points[lapBuffer.points.length - 1];
-    const isLapInvalid = lastPoint.lapInvalid;
-    const maxPointTime = Math.max(...lapBuffer.points.map((p) => p.currentLapTimeInMS));
-    const finalTimeInMS = maxPointTime > 0 ? maxPointTime : lastPoint.currentLapTimeInMS;
-
-    const s1 = lapBuffer.sector1TimeMS ?? null;
-    const s2 = lapBuffer.sector2TimeMS ?? null;
-
-    let s3: number | null = null;
-    if (s1 && s2) {
-      const rawS3 = finalTimeInMS - s1 - s2;
-      s3 = rawS3 > 0 ? rawS3 : null;
-    }
-
-    const createdLap = await this.prisma.lap.create({
-      data: {
-        sessionId: lapBuffer.sessionId,
-        lapNumber: lapBuffer.lapNumber,
-        finalTimeInMS: finalTimeInMS,
-        isLapInvalid: isLapInvalid === 1,
-        telemetryData: lapBuffer.points as unknown as Prisma.InputJsonValue,
-        sector1TimeMS: s1,
-        sector2TimeMS: s2,
-        sector3TimeMS: s3,
-      },
-    });
   }
 }
