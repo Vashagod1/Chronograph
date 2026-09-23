@@ -1,22 +1,41 @@
 # Chronograph
 
-**Real-time F1 telemetry analytics system built with NestJS, PostgreSQL, Prisma, React, and Socket.IO.**
+> **Real-time F1 telemetry analytics system.**
 
-Chronograph receives telemetry data from an F1 simulator over UDP, parses the binary packets, extracts the player's car data, reconstructs laps, persists telemetry, and streams processed data to connected clients in real time.
+Chronograph receives telemetry data from an F1 simulator over UDP, processes the binary packets, reconstructs laps, persists telemetry, and streams processed data to connected clients in real time.
 
-> 🚧 **Status: Active development**
+**Stack:** NestJS · PostgreSQL · Prisma · React · Socket.IO
+
+> 🚧 **Active development**
 >
-> The core telemetry ingestion, parsing, lap processing, persistence, and real-time transport are implemented. Advanced telemetry analysis and visualization are currently being developed.
+> Core telemetry ingestion, parsing, lap processing, persistence, and real-time transport are implemented. Advanced telemetry analysis and visualization are currently in development.
+
+---
+
+## Demo
+
+<img src="./assets/race_demonstration.gif" width="900" alt="Chronograph race telemetry demonstration">
+
+---
+
+## Interface
+
+<table>
+  <tr>
+    <td width="50%">
+      <img src="./assets/how_it_looks.jpg" width="100%" alt="Chronograph telemetry interface">
+    </td>
+    <td width="50%">
+      <img src="./assets/website.jpg" width="100%" alt="Chronograph web interface">
+    </td>
+  </tr>
+</table>
 
 ---
 
 ## Overview
 
-Chronograph is an experimental telemetry platform designed for collecting and analyzing F1 simulator data in real time.
-
-The main goal is to build a reliable data pipeline that turns low-level UDP telemetry packets into structured, queryable racing data.
-
-The current pipeline is:
+Chronograph is built around a real-time telemetry pipeline:
 
 ```text
 F1 Simulator
@@ -183,32 +202,54 @@ The architecture is intentionally split into several responsibilities:
 * **PostgreSQL** — persistent telemetry storage.
 * **React client** — real-time telemetry visualization.
 
----
+[//]: # (---)
 
-## Project Structure
+[//]: # (## Project Structure)
 
-```text
-Chronograph/
-│
-├── client/
-│   ├── src/
-│   ├── package.json
-│   └── ...
-│
-├── server/
-│   ├── prisma/
-│   │   └── schema.prisma
-│   │
-│   ├── src/
-│   │   ├── ...
-│   │   └── telemetry/
-│   │
-│   ├── package.json
-│   └── ...
-│
-├── .gitignore
-└── README.md
-```
+[//]: # ()
+[//]: # (```text)
+
+[//]: # (Chronograph/)
+
+[//]: # (│)
+
+[//]: # (├── client/)
+
+[//]: # (│   ├── src/)
+
+[//]: # (│   ├── package.json)
+
+[//]: # (│   └── ...)
+
+[//]: # (│)
+
+[//]: # (├── server/)
+
+[//]: # (│   ├── prisma/)
+
+[//]: # (│   │   └── schema.prisma)
+
+[//]: # (│   │)
+
+[//]: # (│   ├── src/)
+
+[//]: # (│   │   ├── ...)
+
+[//]: # (│   │   └── telemetry/)
+
+[//]: # (│   │)
+
+[//]: # (│   ├── package.json)
+
+[//]: # (│   └── ...)
+
+[//]: # (│)
+
+[//]: # (├── .gitignore)
+
+[//]: # (└── README.md)
+
+[//]: # (```)
 
 ---
 
